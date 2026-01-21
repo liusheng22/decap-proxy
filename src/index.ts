@@ -38,7 +38,10 @@ const handleAuth = async (url: URL, env: Env) => {
 		state: randomHex(4), // 4 bytes -> 8 hex chars
 	});
 
-	return new Response(null, { headers: { location: authorizationUri }, status: 301 });
+	return new Response(null, {
+		headers: { location: authorizationUri, 'Cache-Control': 'no-store' },
+		status: 302,
+	});
 };
 
 const callbackScriptResponse = (status: string, token: string) => {
@@ -86,9 +89,25 @@ const handleCallback = async (url: URL, env: Env) => {
 	return callbackScriptResponse('success', accessToken);
 };
 
+const handleDebug = (env: Env) => {
+	const clientId = env.GITHUB_OAUTH_ID ?? '';
+	const payload = {
+		hasGithubOAuthId: Boolean(clientId),
+		hasGithubOAuthSecret: Boolean(env.GITHUB_OAUTH_SECRET),
+		githubOAuthIdPrefix: clientId.slice(0, 6),
+		githubOAuthIdLength: clientId.length,
+	};
+	return new Response(JSON.stringify(payload, null, 2), {
+		headers: { 'Content-Type': 'application/json' },
+	});
+};
+
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const url = new URL(request.url);
+		if (url.pathname === '/debug') {
+			return handleDebug(env);
+		}
 		if (url.pathname === '/auth') {
 			return handleAuth(url, env);
 		}
